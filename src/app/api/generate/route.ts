@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
 
     // Find image part in response
     for (const part of parts) {
-      if (part.inlineData) {
+      if (part.inlineData && part.inlineData.data) {
         const mimeType = part.inlineData.mimeType || "image/png";
         const imageData = part.inlineData.data;
         const imageSizeKB = (imageData.length / 1024).toFixed(2);

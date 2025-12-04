@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, DragEvent } from "react";
+import { useCallback, useRef, useState, useEffect, DragEvent } from "react";
 import {
   ReactFlow,
   Background,
@@ -211,6 +211,73 @@ function WorkflowCanvasInner() {
   const handleCloseDropMenu = useCallback(() => {
     setConnectionDrop(null);
   }, []);
+
+  // Keyboard shortcuts for stacking selected nodes
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ignore if user is typing in an input field
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      const selectedNodes = nodes.filter((node) => node.selected);
+      if (selectedNodes.length < 2) return;
+
+      const STACK_GAP = 20;
+
+      if (event.key === "v" || event.key === "V") {
+        // Stack vertically - sort by current y position to maintain relative order
+        const sortedNodes = [...selectedNodes].sort((a, b) => a.position.y - b.position.y);
+
+        // Use the leftmost x position as the alignment point
+        const alignX = Math.min(...sortedNodes.map((n) => n.position.x));
+
+        let currentY = sortedNodes[0].position.y;
+
+        sortedNodes.forEach((node) => {
+          const nodeHeight = (node.style?.height as number) || (node.measured?.height) || 200;
+
+          onNodesChange([
+            {
+              type: "position",
+              id: node.id,
+              position: { x: alignX, y: currentY },
+            },
+          ]);
+
+          currentY += nodeHeight + STACK_GAP;
+        });
+      } else if (event.key === "h" || event.key === "H") {
+        // Stack horizontally - sort by current x position to maintain relative order
+        const sortedNodes = [...selectedNodes].sort((a, b) => a.position.x - b.position.x);
+
+        // Use the topmost y position as the alignment point
+        const alignY = Math.min(...sortedNodes.map((n) => n.position.y));
+
+        let currentX = sortedNodes[0].position.x;
+
+        sortedNodes.forEach((node) => {
+          const nodeWidth = (node.style?.width as number) || (node.measured?.width) || 220;
+
+          onNodesChange([
+            {
+              type: "position",
+              id: node.id,
+              position: { x: currentX, y: alignY },
+            },
+          ]);
+
+          currentX += nodeWidth + STACK_GAP;
+        });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [nodes, onNodesChange]);
 
   const handleDragOver = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
