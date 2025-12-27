@@ -15,7 +15,10 @@
       "WebFetch(domain:ai.google.dev)",
       "Bash(grep:*)",
       "WebFetch(domain:www.cursor-ide.com)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:transang.me)",
+      "WebFetch(domain:javascriptio.com)"
     ],
     "deny": [],
     "ask": []

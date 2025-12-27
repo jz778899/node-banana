@@ -622,6 +622,26 @@ export function WorkflowCanvas() {
   // Get copy/paste functions and clipboard from store
   const { copySelectedNodes, pasteNodes, clearClipboard, clipboard } = useWorkflowStore();
 
+  // Add non-passive wheel listener to prevent Chrome swipe navigation on macOS
+  useEffect(() => {
+    const handleWheelCapture = (event: WheelEvent) => {
+      // Always preventDefault on horizontal wheel to block browser back/forward navigation
+      // But let the event propagate so React Flow and other handlers can still process it
+      if (event.deltaX !== 0) {
+        event.preventDefault();
+      }
+    };
+
+    // Add listener with passive: false and capture phase to catch events early
+    const wrapper = reactFlowWrapper.current;
+    if (wrapper && isMacOS) {
+      wrapper.addEventListener('wheel', handleWheelCapture, { passive: false, capture: true });
+      return () => {
+        wrapper.removeEventListener('wheel', handleWheelCapture, true);
+      };
+    }
+  }, []);
+
   // Keyboard shortcuts for copy/paste and stacking selected nodes
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
