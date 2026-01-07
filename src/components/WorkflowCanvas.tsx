@@ -35,7 +35,7 @@ import { GroupBackgroundsPortal, GroupControlsOverlay } from "./GroupsOverlay";
 import { NodeType, NanoBananaNodeData } from "@/types";
 import { detectAndSplitGrid } from "@/utils/gridSplitter";
 import { logger } from "@/utils/logger";
-import { AIQuickstartWelcome } from "./quickstart";
+import { WelcomeModal } from "./quickstart";
 
 const nodeTypes: NodeTypes = {
   imageInput: ImageInputNode,
@@ -1081,9 +1081,9 @@ export function WorkflowCanvas() {
         </div>
       )}
 
-      {/* AI Quickstart Welcome */}
+      {/* Welcome Modal */}
       {isCanvasEmpty && showQuickstart && (
-        <AIQuickstartWelcome
+        <WelcomeModal
           onWorkflowGenerated={(workflow) => {
             loadWorkflow(workflow);
             setShowQuickstart(false);

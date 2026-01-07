@@ -4,15 +4,15 @@ import { useState, useCallback } from "react";
 import { WorkflowFile } from "@/store/workflowStore";
 import { QuickstartBackButton } from "./QuickstartBackButton";
 
-interface QuickstartVibeViewProps {
+interface PromptWorkflowViewProps {
   onBack: () => void;
   onWorkflowGenerated: (workflow: WorkflowFile) => void;
 }
 
-export function QuickstartVibeView({
+export function PromptWorkflowView({
   onBack,
   onWorkflowGenerated,
-}: QuickstartVibeViewProps) {
+}: PromptWorkflowViewProps) {
   const [description, setDescription] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export function QuickstartVibeView({
         onWorkflowGenerated(result.workflow);
       }
     } catch (err) {
-      console.error("Vibe workflow error:", err);
+      console.error("Prompt workflow error:", err);
       setError(
         err instanceof Error ? err.message : "Failed to generate workflow"
       );
@@ -63,7 +63,7 @@ export function QuickstartVibeView({
       <div className="px-6 py-4 border-b border-neutral-700 flex items-center gap-4">
         <QuickstartBackButton onClick={onBack} disabled={isGenerating} />
         <h2 className="text-lg font-semibold text-neutral-100">
-          Vibe Workflow
+          Prompt a Workflow
         </h2>
       </div>
 

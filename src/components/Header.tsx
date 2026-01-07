@@ -16,11 +16,7 @@ export function Header() {
     setWorkflowMetadata,
     saveToFile,
     loadWorkflow,
-    nodes,
-    setShowQuickstart,
   } = useWorkflowStore();
-
-  const hasNodes = nodes.length > 0;
 
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [projectModalMode, setProjectModalMode] = useState<"new" | "settings">("new");
@@ -245,21 +241,6 @@ export function Header() {
               </button>
             </>
           )}
-          {hasNodes && (
-            <>
-              <span className="text-neutral-500 ml-2">·</span>
-              <button
-                onClick={() => setShowQuickstart(true)}
-                className="flex items-center gap-1.5 text-neutral-400 hover:text-neutral-200 transition-colors"
-                title="AI Quickstart - Generate workflow from description"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span>Quickstart</span>
-              </button>
-            </>
-          )}
           <span className="text-neutral-500 ml-2">·</span>
           <a
             href="https://x.com/ReflctWillie"
@@ -271,7 +252,7 @@ export function Header() {
           </a>
           <span className="text-neutral-500">·</span>
           <a
-            href="https://discord.gg/zBzGbtfDfB"
+            href="https://discord.com/invite/89Nr6EKkTf"
             target="_blank"
             rel="noopener noreferrer"
             className="text-neutral-400 hover:text-neutral-200 transition-colors"
