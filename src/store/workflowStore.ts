@@ -775,20 +775,14 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       return { valid: false, errors };
     }
 
-    // Check each Nano Banana node has required inputs
+    // Check each Nano Banana node has required inputs (text required, image optional)
     nodes
       .filter((n) => n.type === "nanoBanana")
       .forEach((node) => {
-        const imageConnected = edges.some(
-          (e) => e.target === node.id && e.targetHandle === "image"
-        );
         const textConnected = edges.some(
           (e) => e.target === node.id && e.targetHandle === "text"
         );
 
-        if (!imageConnected) {
-          errors.push(`Generate node "${node.id}" missing image input`);
-        }
         if (!textConnected) {
           errors.push(`Generate node "${node.id}" missing text input`);
         }
@@ -959,15 +953,13 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           case "nanoBanana": {
             const { images, text } = getConnectedInputs(node.id);
 
-            if (images.length === 0 || !text) {
-              logger.error('node.error', 'nanoBanana node missing inputs', {
+            if (!text) {
+              logger.error('node.error', 'nanoBanana node missing text input', {
                 nodeId: node.id,
-                hasImages: images.length > 0,
-                hasText: !!text,
               });
               updateNodeData(node.id, {
                 status: "error",
-                error: "Missing image or text input",
+                error: "Missing text input",
               });
               set({ isRunning: false, currentNodeId: null });
               await logger.endSession();
@@ -1398,15 +1390,13 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         let images = inputs.images.length > 0 ? inputs.images : nodeData.inputImages;
         let text = inputs.text ?? nodeData.inputPrompt;
 
-        if (!images || images.length === 0 || !text) {
-          logger.error('node.error', 'nanoBanana regeneration failed: missing inputs', {
+        if (!text) {
+          logger.error('node.error', 'nanoBanana regeneration failed: missing text input', {
             nodeId,
-            hasImages: !!(images && images.length > 0),
-            hasText: !!text,
           });
           updateNodeData(nodeId, {
             status: "error",
-            error: "Missing image or text input",
+            error: "Missing text input",
           });
           set({ isRunning: false, currentNodeId: null });
           await logger.endSession();
