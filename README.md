@@ -80,20 +80,6 @@ The `/examples` directory contains some example workflow files from my personal 
 4. **Run workflow** - Click the Run button to execute the pipeline
 5. **Save/Load** - Use the header menu to save or load workflows
 
-## AI Quickstart
-
-When you open the app with an empty canvas, you'll see the AI Quickstart welcome screen. You can:
-
-1. **Choose a preset template** - Click one of 6 preset workflow templates:
-   - Product Shot, Model + Product, Color Variations, Background Swap, Style Transfer, Scene Composite
-2. **Describe your workflow** - Enter a natural language description and let Gemini generate a custom workflow
-3. **Select content level** - Choose how much detail to pre-fill:
-   - Empty: Blank nodes for you to fill in
-   - Minimal: Placeholder prompts as starting points
-   - Full: Complete example prompts demonstrating the workflow
-
-The generated workflow includes properly connected nodes with sample images ready to customize.
-
 ## Connection Rules
 
 - **Image** handles connect to **Image** handles only
