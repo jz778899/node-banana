@@ -186,9 +186,25 @@ export async function GET(
 
     if (isSearchRequest) {
       const data: ReplicateSearchResponse = await response.json();
+      // Defensive null check - search API may return different structure
+      if (!data.results) {
+        console.log(`[Replicate:${requestId}] Search returned no results array`);
+        return NextResponse.json<ModelsSuccessResponse>({
+          success: true,
+          models: [],
+        });
+      }
       models = data.results.map((result) => mapToProviderModel(result.model));
     } else {
       const data: ReplicateModelsResponse = await response.json();
+      // Defensive null check for list endpoint as well
+      if (!data.results) {
+        console.log(`[Replicate:${requestId}] List returned no results array`);
+        return NextResponse.json<ModelsSuccessResponse>({
+          success: true,
+          models: [],
+        });
+      }
       models = data.results.map(mapToProviderModel);
     }
 

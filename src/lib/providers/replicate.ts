@@ -161,6 +161,11 @@ const replicateProvider: ProviderInterface = {
       }
 
       const data: ReplicateModelsResponse = await response.json();
+      // Defensive null check - API may return different structure
+      if (!data.results) {
+        console.warn("[Replicate] List returned no results array");
+        return [];
+      }
       return data.results.map(mapToProviderModel);
     } catch (error) {
       console.error("[Replicate] Failed to list models:", error);
@@ -190,6 +195,11 @@ const replicateProvider: ProviderInterface = {
       }
 
       const data: ReplicateSearchResponse = await response.json();
+      // Defensive null check - search API may return different structure
+      if (!data.results) {
+        console.warn("[Replicate] Search returned no results array");
+        return [];
+      }
       return data.results.map((result) => mapToProviderModel(result.model));
     } catch (error) {
       console.error("[Replicate] Failed to search models:", error);
