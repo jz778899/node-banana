@@ -3,26 +3,50 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import { logger } from "@/utils/logger";
 
-// POST: Save a generated image to the generations folder
+// Helper to get file extension from MIME type
+function getExtensionFromMime(mimeType: string): string {
+  const mimeToExt: Record<string, string> = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/gif": "gif",
+    "image/webp": "webp",
+    "video/mp4": "mp4",
+    "video/webm": "webm",
+    "video/quicktime": "mov",
+  };
+  return mimeToExt[mimeType] || "mp4";
+}
+
+// Helper to detect if a string is an HTTP URL
+function isHttpUrl(str: string): boolean {
+  return str.startsWith("http://") || str.startsWith("https://");
+}
+
+// POST: Save a generated image or video to the generations folder
 export async function POST(request: NextRequest) {
   let directoryPath: string | undefined;
   try {
     const body = await request.json();
     directoryPath = body.directoryPath;
     const image = body.image;
+    const video = body.video;
     const prompt = body.prompt;
     const imageId = body.imageId; // Optional ID for carousel support
+
+    const isVideo = !!video;
+    const content = video || image;
 
     logger.info('file.save', 'Generation auto-save request received', {
       directoryPath,
       hasImage: !!image,
+      hasVideo: !!video,
       prompt,
     });
 
-    if (!directoryPath || !image) {
+    if (!directoryPath || !content) {
       logger.warn('file.save', 'Generation save validation failed: missing fields', {
         hasDirectoryPath: !!directoryPath,
-        hasImage: !!image,
+        hasContent: !!content,
       });
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
@@ -52,10 +76,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate filename: use imageId if provided, otherwise timestamp + sanitized prompt snippet
+    let buffer: Buffer;
+    let extension: string;
+
+    if (isHttpUrl(content)) {
+      // Handle HTTP URL (common for large video files from providers)
+      logger.info('file.save', 'Fetching content from URL', { url: content.substring(0, 100) });
+
+      const response = await fetch(content);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch content: ${response.status} ${response.statusText}`);
+      }
+
+      const contentType = response.headers.get("content-type") || (isVideo ? "video/mp4" : "image/png");
+      extension = getExtensionFromMime(contentType);
+
+      const arrayBuffer = await response.arrayBuffer();
+      buffer = Buffer.from(arrayBuffer);
+    } else {
+      // Handle base64 data URL
+      const dataUrlMatch = content.match(/^data:([\w/+-]+);base64,/);
+      if (dataUrlMatch) {
+        const mimeType = dataUrlMatch[1];
+        extension = getExtensionFromMime(mimeType);
+        const base64Data = content.replace(/^data:[\w/+-]+;base64,/, "");
+        buffer = Buffer.from(base64Data, "base64");
+      } else {
+        // Fallback: assume it's raw base64 without data URL prefix
+        extension = isVideo ? "mp4" : "png";
+        buffer = Buffer.from(content, "base64");
+      }
+    }
+
+    // Generate filename
     let filename: string;
     if (imageId) {
-      filename = `${imageId}.png`;
+      filename = `${imageId}.${extension}`;
     } else {
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
       const promptSnippet = prompt
@@ -66,28 +122,25 @@ export async function POST(request: NextRequest) {
             .replace(/^_|_$/g, "")
             .toLowerCase()
         : "generation";
-      filename = `${timestamp}_${promptSnippet}.png`;
+      filename = `${timestamp}_${promptSnippet}.${extension}`;
     }
     const filePath = path.join(directoryPath, filename);
 
-    // Extract base64 data and convert to buffer
-    const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-    const buffer = Buffer.from(base64Data, "base64");
-
-    // Write the image file
+    // Write the file
     await fs.writeFile(filePath, buffer);
 
     logger.info('file.save', 'Generation auto-saved successfully', {
       filePath,
       filename,
       fileSize: buffer.length,
+      isVideo,
     });
 
     return NextResponse.json({
       success: true,
       filePath,
       filename,
-      imageId: imageId || filename.replace('.png', ''), // Return ID for carousel tracking
+      imageId: imageId || filename.replace(`.${extension}`, ''),
     });
   } catch (error) {
     logger.error('file.error', 'Failed to save generation', {

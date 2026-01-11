@@ -332,7 +332,7 @@ export interface NodeGroup {
 }
 
 // Provider Types for multi-provider support
-export type ProviderType = "gemini" | "replicate" | "fal";
+export type ProviderType = "gemini" | "openai" | "replicate" | "fal";
 
 // Selected model for image/video generation nodes
 export interface SelectedModel {

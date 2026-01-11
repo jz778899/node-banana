@@ -1097,14 +1097,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Default: Use Gemini
-    const geminiApiKey = process.env.GEMINI_API_KEY;
+    // User-provided key (from settings) takes precedence over env variable
+    const geminiApiKey = request.headers.get("X-Gemini-API-Key") || process.env.GEMINI_API_KEY;
 
     if (!geminiApiKey) {
       console.error(`[API:${requestId}] No Gemini API key configured`);
       return NextResponse.json<GenerateResponse>(
         {
           success: false,
-          error: "API key not configured. Add GEMINI_API_KEY to .env.local",
+          error: "API key not configured. Add GEMINI_API_KEY to .env.local or configure in Settings.",
         },
         { status: 500 }
       );

@@ -117,20 +117,42 @@ function isTextInput(name: string): boolean {
 }
 
 /**
+ * Resolve a $ref reference in OpenAPI schema
+ * E.g., "#/components/schemas/AspectRatio" -> schema object
+ */
+function resolveRef(
+  ref: string,
+  schemaComponents: Record<string, unknown>
+): Record<string, unknown> | null {
+  // Parse reference path like "#/components/schemas/AspectRatio"
+  const match = ref.match(/^#\/components\/schemas\/(.+)$/);
+  if (!match) return null;
+
+  const schemaName = match[1];
+  const resolved = schemaComponents[schemaName] as Record<string, unknown> | undefined;
+  return resolved || null;
+}
+
+/**
  * Convert OpenAPI schema property to ModelParameter
  */
 function convertSchemaProperty(
   name: string,
   prop: Record<string, unknown>,
-  required: string[]
+  required: string[],
+  schemaComponents?: Record<string, unknown>
 ): ModelParameter | null {
   // Skip excluded parameters
   if (EXCLUDED_PARAMS.has(name)) {
     return null;
   }
 
-  // Determine type
+  // Determine type and extract enum from allOf/$ref if present
   let type: ModelParameter["type"] = "string";
+  let enumValues: unknown[] | undefined;
+  let resolvedDefault: unknown;
+  let resolvedDescription: string | undefined;
+
   const schemaType = prop.type as string | undefined;
   const allOf = prop.allOf as Array<Record<string, unknown>> | undefined;
 
@@ -142,16 +164,43 @@ function convertSchemaProperty(
     type = "boolean";
   } else if (schemaType === "array") {
     type = "array";
-  } else if (allOf && allOf.length > 0) {
-    // Handle allOf with enum reference
-    type = "string";
+  } else if (allOf && allOf.length > 0 && schemaComponents) {
+    // Handle allOf with $ref - resolve references and extract enum/type
+    for (const item of allOf) {
+      const itemRef = item.$ref as string | undefined;
+      if (itemRef) {
+        const resolved = resolveRef(itemRef, schemaComponents);
+        if (resolved) {
+          // Extract type from resolved schema
+          if (resolved.type === "integer") type = "integer";
+          else if (resolved.type === "number") type = "number";
+          else if (resolved.type === "boolean") type = "boolean";
+
+          // Extract enum from resolved schema
+          if (Array.isArray(resolved.enum)) {
+            enumValues = resolved.enum;
+          }
+          // Extract default from resolved schema
+          if (resolved.default !== undefined && resolvedDefault === undefined) {
+            resolvedDefault = resolved.default;
+          }
+          // Extract description from resolved schema
+          if (resolved.description && !resolvedDescription) {
+            resolvedDescription = resolved.description as string;
+          }
+        }
+      } else if (Array.isArray(item.enum)) {
+        // Direct enum in allOf item
+        enumValues = item.enum;
+      }
+    }
   }
 
   const parameter: ModelParameter = {
     name,
     type,
-    description: prop.description as string | undefined,
-    default: prop.default,
+    description: (prop.description as string | undefined) || resolvedDescription,
+    default: prop.default !== undefined ? prop.default : resolvedDefault,
     required: required.includes(name),
   };
 
@@ -162,8 +211,12 @@ function convertSchemaProperty(
   if (typeof prop.maximum === "number") {
     parameter.maximum = prop.maximum;
   }
+
+  // Use enum from property directly, or from resolved $ref
   if (Array.isArray(prop.enum)) {
     parameter.enum = prop.enum;
+  } else if (enumValues) {
+    parameter.enum = enumValues;
   }
 
   return parameter;
@@ -210,7 +263,9 @@ async function fetchReplicateSchema(
     return { parameters: [], inputs: [] };
   }
 
-  return extractParametersFromSchema(inputSchema as Record<string, unknown>);
+  // Pass components.schemas for $ref resolution
+  const schemaComponents = openApiSchema.components?.schemas as Record<string, unknown> | undefined;
+  return extractParametersFromSchema(inputSchema as Record<string, unknown>, schemaComponents);
 }
 
 /**
@@ -281,13 +336,18 @@ async function fetchFalSchema(
     return { parameters: [], inputs: [] };
   }
 
-  return extractParametersFromSchema(inputSchema);
+  // Pass components.schemas for $ref resolution
+  const schemaComponents = spec.components?.schemas as Record<string, unknown> | undefined;
+  return extractParametersFromSchema(inputSchema, schemaComponents);
 }
 
 /**
  * Extract ModelParameters and ModelInputs from an OpenAPI schema object
  */
-function extractParametersFromSchema(schema: Record<string, unknown>): ExtractedSchema {
+function extractParametersFromSchema(
+  schema: Record<string, unknown>,
+  schemaComponents?: Record<string, unknown>
+): ExtractedSchema {
   const properties = schema.properties as Record<string, Record<string, unknown>> | undefined;
   const required = (schema.required as string[]) || [];
 
@@ -323,7 +383,7 @@ function extractParametersFromSchema(schema: Record<string, unknown>): Extracted
     }
 
     // Otherwise it's a parameter
-    const param = convertSchemaProperty(name, prop, required);
+    const param = convertSchemaProperty(name, prop, required, schemaComponents);
     if (param) {
       parameters.push(param);
     }

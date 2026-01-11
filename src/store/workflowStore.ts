@@ -354,8 +354,9 @@ const PROVIDER_SETTINGS_KEY = "node-banana-provider-settings";
 const defaultProviderSettings: ProviderSettings = {
   providers: {
     gemini: { id: "gemini", name: "Google Gemini", enabled: true, apiKey: null, apiKeyEnvVar: "GEMINI_API_KEY" },
-    replicate: { id: "replicate", name: "Replicate", enabled: false, apiKey: null },
-    fal: { id: "fal", name: "fal.ai", enabled: false, apiKey: null },
+    openai: { id: "openai", name: "OpenAI", enabled: true, apiKey: null, apiKeyEnvVar: "OPENAI_API_KEY" },
+    replicate: { id: "replicate", name: "Replicate", enabled: false, apiKey: null, apiKeyEnvVar: "REPLICATE_API_KEY" },
+    fal: { id: "fal", name: "fal.ai", enabled: false, apiKey: null, apiKeyEnvVar: "FAL_API_KEY" },
   }
 };
 
@@ -364,7 +365,14 @@ const getProviderSettings = (): ProviderSettings => {
   const stored = localStorage.getItem(PROVIDER_SETTINGS_KEY);
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored) as ProviderSettings;
+      // Merge with defaults to handle new providers added after user saved settings
+      return {
+        providers: {
+          ...defaultProviderSettings.providers,
+          ...parsed.providers,
+        }
+      };
     } catch {
       return defaultProviderSettings;
     }
@@ -1101,23 +1109,28 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
                 dynamicInputs,  // Pass dynamic inputs for schema-mapped connections
               };
 
-              // Build headers with API keys for external providers
+              // Build headers with API keys for providers
               const headers: Record<string, string> = {
                 "Content-Type": "application/json",
               };
-              if (nodeData.selectedModel?.provider === "replicate") {
+              const provider = nodeData.selectedModel?.provider || "gemini";
+              if (provider === "gemini") {
+                const geminiConfig = providerSettingsState.providers.gemini;
+                if (geminiConfig?.apiKey) {
+                  headers["X-Gemini-API-Key"] = geminiConfig.apiKey;
+                }
+              } else if (provider === "replicate") {
                 const replicateConfig = providerSettingsState.providers.replicate;
                 if (replicateConfig?.apiKey) {
                   headers["X-Replicate-API-Key"] = replicateConfig.apiKey;
                 }
-              } else if (nodeData.selectedModel?.provider === "fal") {
+              } else if (provider === "fal") {
                 const falConfig = providerSettingsState.providers.fal;
                 if (falConfig?.apiKey) {
                   headers["X-Fal-API-Key"] = falConfig.apiKey;
                 }
               }
 
-              const provider = nodeData.selectedModel?.provider || "gemini";
               logger.info('node.execution', `Calling ${provider} API for image generation`, {
                 nodeId: node.id,
                 provider,
@@ -1310,23 +1323,27 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
                 dynamicInputs,  // Pass dynamic inputs for schema-mapped connections
               };
 
-              // Build headers with API keys for external providers
+              // Build headers with API keys for providers
               const headers: Record<string, string> = {
                 "Content-Type": "application/json",
               };
-              if (nodeData.selectedModel.provider === "replicate") {
+              const provider = nodeData.selectedModel.provider;
+              if (provider === "gemini") {
+                const geminiConfig = providerSettingsState.providers.gemini;
+                if (geminiConfig?.apiKey) {
+                  headers["X-Gemini-API-Key"] = geminiConfig.apiKey;
+                }
+              } else if (provider === "replicate") {
                 const replicateConfig = providerSettingsState.providers.replicate;
                 if (replicateConfig?.apiKey) {
                   headers["X-Replicate-API-Key"] = replicateConfig.apiKey;
                 }
-              } else if (nodeData.selectedModel.provider === "fal") {
+              } else if (provider === "fal") {
                 const falConfig = providerSettingsState.providers.fal;
                 if (falConfig?.apiKey) {
                   headers["X-Fal-API-Key"] = falConfig.apiKey;
                 }
               }
-
-              const provider = nodeData.selectedModel.provider;
               logger.info('node.execution', `Calling ${provider} API for video generation`, {
                 nodeId: node.id,
                 provider,
@@ -1378,6 +1395,22 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
                   status: "complete",
                   error: null,
                 });
+
+                // Auto-save video to generations folder if configured
+                const genPath = get().generationsPath;
+                if (genPath) {
+                  fetch("/api/save-generation", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      directoryPath: genPath,
+                      video: videoData,
+                      prompt: text,
+                    }),
+                  }).catch((err) => {
+                    console.error("Failed to save video generation:", err);
+                  });
+                }
               } else if (result.success && result.image) {
                 // Some models might return an image preview; treat as video for now
                 updateNodeData(node.id, {
@@ -1385,6 +1418,22 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
                   status: "complete",
                   error: null,
                 });
+
+                // Auto-save image preview to generations folder if configured
+                const genPath = get().generationsPath;
+                if (genPath) {
+                  fetch("/api/save-generation", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      directoryPath: genPath,
+                      image: result.image,
+                      prompt: text,
+                    }),
+                  }).catch((err) => {
+                    console.error("Failed to save video generation:", err);
+                  });
+                }
               } else {
                 logger.error('api.error', `${provider} API video generation failed`, {
                   nodeId: node.id,
@@ -1453,6 +1502,23 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
             try {
               const nodeData = node.data as LLMGenerateNodeData;
+              const providerSettingsState = get().providerSettings;
+
+              // Build headers with API keys for LLM providers
+              const headers: Record<string, string> = {
+                "Content-Type": "application/json",
+              };
+              if (nodeData.provider === "google") {
+                const geminiConfig = providerSettingsState.providers.gemini;
+                if (geminiConfig?.apiKey) {
+                  headers["X-Gemini-API-Key"] = geminiConfig.apiKey;
+                }
+              } else if (nodeData.provider === "openai") {
+                const openaiConfig = providerSettingsState.providers.openai;
+                if (openaiConfig?.apiKey) {
+                  headers["X-OpenAI-API-Key"] = openaiConfig.apiKey;
+                }
+              }
 
               logger.info('api.llm', 'Calling LLM API', {
                 nodeId: node.id,
@@ -1466,7 +1532,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
               const response = await fetch("/api/llm", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers,
                 body: JSON.stringify({
                   prompt: text,
                   ...(images.length > 0 && { images }),
@@ -1735,16 +1801,21 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           error: null,
         });
 
-        // Build headers with API keys for external providers
+        // Build headers with API keys for providers
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
         };
-        if (nodeData.selectedModel?.provider === "replicate") {
+        if (provider === "gemini") {
+          const geminiConfig = providerSettingsState.providers.gemini;
+          if (geminiConfig?.apiKey) {
+            headers["X-Gemini-API-Key"] = geminiConfig.apiKey;
+          }
+        } else if (provider === "replicate") {
           const replicateConfig = providerSettingsState.providers.replicate;
           if (replicateConfig?.apiKey) {
             headers["X-Replicate-API-Key"] = replicateConfig.apiKey;
           }
-        } else if (nodeData.selectedModel?.provider === "fal") {
+        } else if (provider === "fal") {
           const falConfig = providerSettingsState.providers.fal;
           if (falConfig?.apiKey) {
             headers["X-Fal-API-Key"] = falConfig.apiKey;
@@ -1881,6 +1952,24 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           error: null,
         });
 
+        const providerSettingsState = get().providerSettings;
+
+        // Build headers with API keys for LLM providers
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (nodeData.provider === "google") {
+          const geminiConfig = providerSettingsState.providers.gemini;
+          if (geminiConfig?.apiKey) {
+            headers["X-Gemini-API-Key"] = geminiConfig.apiKey;
+          }
+        } else if (nodeData.provider === "openai") {
+          const openaiConfig = providerSettingsState.providers.openai;
+          if (openaiConfig?.apiKey) {
+            headers["X-OpenAI-API-Key"] = openaiConfig.apiKey;
+          }
+        }
+
         logger.info('api.llm', 'Calling LLM API for node regeneration', {
           nodeId,
           provider: nodeData.provider,
@@ -1893,7 +1982,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
 
         const response = await fetch("/api/llm", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({
             prompt: text,
             ...(images.length > 0 && { images }),
@@ -1982,23 +2071,27 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
           error: null,
         });
 
-        // Build headers with API keys for external providers
+        // Build headers with API keys for providers
         const headers: Record<string, string> = {
           "Content-Type": "application/json",
         };
-        if (nodeData.selectedModel.provider === "replicate") {
+        const provider = nodeData.selectedModel.provider;
+        if (provider === "gemini") {
+          const geminiConfig = providerSettingsState.providers.gemini;
+          if (geminiConfig?.apiKey) {
+            headers["X-Gemini-API-Key"] = geminiConfig.apiKey;
+          }
+        } else if (provider === "replicate") {
           const replicateConfig = providerSettingsState.providers.replicate;
           if (replicateConfig?.apiKey) {
             headers["X-Replicate-API-Key"] = replicateConfig.apiKey;
           }
-        } else if (nodeData.selectedModel.provider === "fal") {
+        } else if (provider === "fal") {
           const falConfig = providerSettingsState.providers.fal;
           if (falConfig?.apiKey) {
             headers["X-Fal-API-Key"] = falConfig.apiKey;
           }
         }
-
-        const provider = nodeData.selectedModel.provider;
         logger.info('node.execution', `Calling ${provider} API for video regeneration`, {
           nodeId,
           provider,
@@ -2046,12 +2139,44 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
             status: "complete",
             error: null,
           });
+
+          // Auto-save video to generations folder if configured
+          const genPath = get().generationsPath;
+          if (genPath) {
+            fetch("/api/save-generation", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                directoryPath: genPath,
+                video: videoData,
+                prompt: text,
+              }),
+            }).catch((err) => {
+              console.error("Failed to save video generation:", err);
+            });
+          }
         } else if (result.success && result.image) {
           updateNodeData(nodeId, {
             outputVideo: result.image,
             status: "complete",
             error: null,
           });
+
+          // Auto-save image preview to generations folder if configured
+          const genPath = get().generationsPath;
+          if (genPath) {
+            fetch("/api/save-generation", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                directoryPath: genPath,
+                image: result.image,
+                prompt: text,
+              }),
+            }).catch((err) => {
+              console.error("Failed to save video generation:", err);
+            });
+          }
         } else {
           logger.error('api.error', `${provider} API video regeneration failed`, {
             nodeId,
