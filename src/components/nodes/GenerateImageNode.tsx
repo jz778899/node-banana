@@ -360,7 +360,7 @@ export function GenerateImageNode({ id, data, selected }: NodeProps<NanoBananaNo
                   type="target"
                   position={Position.Left}
                   id={input.name}
-                  style={{ top: `${topPercent}%` }}
+                  style={{ top: `calc(${topPercent}% - 5px)` }}
                   data-handletype={input.type}
                   isConnectable={true}
                   title={input.description || input.label}
@@ -387,7 +387,7 @@ export function GenerateImageNode({ id, data, selected }: NodeProps<NanoBananaNo
             type="target"
             position={Position.Left}
             id="image"
-            style={{ top: "35%" }}
+            style={{ top: "calc(35% - 5px)" }}
             data-handletype="image"
             isConnectable={true}
           />
@@ -406,7 +406,7 @@ export function GenerateImageNode({ id, data, selected }: NodeProps<NanoBananaNo
             type="target"
             position={Position.Left}
             id="text"
-            style={{ top: "65%" }}
+            style={{ top: "calc(65% - 5px)" }}
             data-handletype="text"
           />
           {/* Default text label */}
@@ -427,7 +427,7 @@ export function GenerateImageNode({ id, data, selected }: NodeProps<NanoBananaNo
         type="source"
         position={Position.Right}
         id="image"
-        style={{ top: "50%" }}
+        style={{ top: "calc(50% - 5px)" }}
         data-handletype="image"
       />
       {/* Output label */}

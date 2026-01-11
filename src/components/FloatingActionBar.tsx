@@ -181,6 +181,12 @@ export function FloatingActionBar() {
   } = useWorkflowStore();
   const [runMenuOpen, setRunMenuOpen] = useState(false);
   const runMenuRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Defer client-only rendering to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { valid, errors } = validateWorkflow();
 
@@ -246,7 +252,7 @@ export function FloatingActionBar() {
         <div className="w-px h-5 bg-neutral-600 mx-1.5" />
 
         {/* Replicate icon - only show if API key is configured */}
-        {providerSettings.providers.replicate?.apiKey && (
+        {mounted && providerSettings.providers.replicate?.apiKey && (
           <ProviderIconButton
             provider="replicate"
             onClick={() => setModelSearchOpen(true, "replicate")}
