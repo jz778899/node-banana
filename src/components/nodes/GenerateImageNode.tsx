@@ -9,6 +9,7 @@ import { NanoBananaNodeData, AspectRatio, Resolution, ModelType, ProviderType, S
 import { ProviderModel, ModelCapability } from "@/lib/providers/types";
 import { ModelSearchDialog } from "@/components/modals/ModelSearchDialog";
 import { useToast } from "@/components/Toast";
+import { getImageDimensions, calculateNodeSize } from "@/utils/nodeDimensions";
 
 // All 10 aspect ratios supported by both models
 const ASPECT_RATIOS: AspectRatio[] = ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"];
@@ -396,6 +397,35 @@ export function GenerateImageNode({ id, data, selected }: NodeProps<NanoBananaNo
     }
     prevStatusRef.current = nodeData.status;
   }, [nodeData.status, nodeData.error]);
+
+  // Auto-resize node when output image changes
+  const prevOutputImageRef = useRef<string | null>(null);
+  useEffect(() => {
+    // Only resize when outputImage transitions from null/different to a new value
+    if (!nodeData.outputImage || nodeData.outputImage === prevOutputImageRef.current) {
+      prevOutputImageRef.current = nodeData.outputImage ?? null;
+      return;
+    }
+    prevOutputImageRef.current = nodeData.outputImage;
+
+    // Use requestAnimationFrame to avoid React Flow update conflicts
+    requestAnimationFrame(() => {
+      getImageDimensions(nodeData.outputImage!).then((dims) => {
+        if (!dims) return;
+
+        const aspectRatio = dims.width / dims.height;
+        const newSize = calculateNodeSize(aspectRatio);
+
+        setNodes((nodes) =>
+          nodes.map((node) =>
+            node.id === id
+              ? { ...node, style: { ...node.style, width: newSize.width, height: newSize.height } }
+              : node
+          )
+        );
+      });
+    });
+  }, [id, nodeData.outputImage, setNodes]);
 
   return (
     <>

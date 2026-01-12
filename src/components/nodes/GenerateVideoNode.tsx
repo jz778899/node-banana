@@ -9,6 +9,7 @@ import { GenerateVideoNodeData, ProviderType, SelectedModel, ModelInputDef } fro
 import { ProviderModel, ModelCapability } from "@/lib/providers/types";
 import { ModelSearchDialog } from "@/components/modals/ModelSearchDialog";
 import { useToast } from "@/components/Toast";
+import { getVideoDimensions, calculateNodeSize } from "@/utils/nodeDimensions";
 
 // Video generation capabilities
 const VIDEO_CAPABILITIES: ModelCapability[] = ["text-to-video", "image-to-video"];
@@ -274,6 +275,35 @@ export function GenerateVideoNode({ id, data, selected }: NodeProps<GenerateVide
     }
     prevStatusRef.current = nodeData.status;
   }, [nodeData.status, nodeData.error]);
+
+  // Auto-resize node when output video changes
+  const prevOutputVideoRef = useRef<string | null>(null);
+  useEffect(() => {
+    // Only resize when outputVideo transitions from null/different to a new value
+    if (!nodeData.outputVideo || nodeData.outputVideo === prevOutputVideoRef.current) {
+      prevOutputVideoRef.current = nodeData.outputVideo ?? null;
+      return;
+    }
+    prevOutputVideoRef.current = nodeData.outputVideo;
+
+    // Use requestAnimationFrame to avoid React Flow update conflicts
+    requestAnimationFrame(() => {
+      getVideoDimensions(nodeData.outputVideo!).then((dims) => {
+        if (!dims) return;
+
+        const aspectRatio = dims.width / dims.height;
+        const newSize = calculateNodeSize(aspectRatio);
+
+        setNodes((nodes) =>
+          nodes.map((node) =>
+            node.id === id
+              ? { ...node, style: { ...node.style, width: newSize.width, height: newSize.height } }
+              : node
+          )
+        );
+      });
+    });
+  }, [id, nodeData.outputVideo, setNodes]);
 
   return (
     <>
