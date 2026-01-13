@@ -236,7 +236,7 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 18-01: File I/O routes (workflow, save-generation)
+- [x] 18-01: File I/O routes (workflow, save-generation)
 - [ ] 18-02: LLM route (Google, OpenAI providers)
 - [ ] 18-03: Generate route (Gemini provider)
 - [ ] 18-04: Generate route (Replicate, fal.ai providers)
@@ -319,7 +319,7 @@ Phases execute in numeric order: 1 → 2 → ... → 14 → 15 → 16 → 17 →
 | 15. Test Infrastructure | v1.2 | 1/1 | Complete | 2026-01-12 |
 | 16. Store Modularization | v1.2 | 1/1 | Complete | 2026-01-12 |
 | 17. Component Tests | v1.2 | 11/11 | Complete | 2026-01-13 |
-| 18. API Route Tests | v1.2 | 0/? | Not started | - |
+| 18. API Route Tests | v1.2 | 1/5 | In progress | - |
 | 19. Type Refactoring | v1.2 | 0/? | Not started | - |
 | 20. Integration Tests | v1.2 | 0/? | Not started | - |
 | 21. Fix Image Input & Deduplication | v1.2 | 0/? | Not started | - |
