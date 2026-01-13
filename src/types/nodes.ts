@@ -15,15 +15,9 @@ import type {
 // Re-export types from annotation for convenience
 export type { AnnotationNodeData, BaseNodeData };
 
-// Import shared types that remain in index.ts (will be moved in Plan 2)
-import type {
-  AspectRatio,
-  Resolution,
-  ModelType,
-  LLMProvider,
-  LLMModelType,
-  SelectedModel,
-} from "./index";
+// Import from domain files to avoid circular dependencies
+import type { AspectRatio, Resolution, ModelType } from "./models";
+import type { LLMProvider, LLMModelType, SelectedModel } from "./providers";
 
 /**
  * All available node types in the workflow editor
