@@ -91,9 +91,12 @@ export function PromptWorkflowView({
               border-neutral-700 hover:border-neutral-600
             `}
           />
-          <p className="text-[10px] text-neutral-500">
+          <p className="text-xs text-neutral-400">
             Describe what you want your workflow to accomplish. Be specific
             about inputs, outputs, and any transformations.
+          </p>
+          <p className="text-xs text-neutral-400">
+            Note: This feature currently only works with Gemini models.
           </p>
         </div>
 

@@ -1,5 +1,14 @@
 import { WorkflowNode, WorkflowNodeData } from "@/types";
 import { WorkflowFile } from "@/store/workflowStore";
+import crypto from "crypto";
+
+/**
+ * Compute MD5 hash of image content for deduplication
+ * Consistent with save-generation API (Phase 13 decision)
+ */
+function computeContentHash(data: string): string {
+  return crypto.createHash("md5").update(data).digest("hex");
+}
 
 /**
  * Generate a unique image ID for external storage
@@ -53,13 +62,12 @@ async function externalizeNodeImages(
   switch (node.type) {
     case "imageInput": {
       const d = data as import("@/types").ImageInputNodeData;
-      if (isBase64DataUrl(d.image)) {
+      // Skip if already has a valid imageRef (prevents duplicates on re-save after hydration)
+      if (d.imageRef && isBase64DataUrl(d.image)) {
+        newData = { ...d, image: null };
+      } else if (isBase64DataUrl(d.image)) {
         const imageId = await saveImageAndGetId(d.image, workflowPath, savedImageIds, "inputs");
-        newData = {
-          ...d,
-          image: null,
-          imageRef: imageId,
-        };
+        newData = { ...d, image: null, imageRef: imageId };
       } else {
         newData = d;
       }
@@ -74,11 +82,16 @@ async function externalizeNodeImages(
       let outputImage = d.outputImage;
 
       // Annotation images are user-created, save to inputs
-      if (isBase64DataUrl(d.sourceImage)) {
+      // Skip if already has ref (prevents duplicates on re-save after hydration)
+      if (d.sourceImageRef && isBase64DataUrl(d.sourceImage)) {
+        sourceImage = null;
+      } else if (isBase64DataUrl(d.sourceImage)) {
         sourceImageRef = await saveImageAndGetId(d.sourceImage, workflowPath, savedImageIds, "inputs");
         sourceImage = null;
       }
-      if (isBase64DataUrl(d.outputImage)) {
+      if (d.outputImageRef && isBase64DataUrl(d.outputImage)) {
+        outputImage = null;
+      } else if (isBase64DataUrl(d.outputImage)) {
         outputImageRef = await saveImageAndGetId(d.outputImage, workflowPath, savedImageIds, "inputs");
         outputImage = null;
       }
@@ -97,20 +110,28 @@ async function externalizeNodeImages(
       const d = data as import("@/types").NanoBananaNodeData;
       let outputImageRef = d.outputImageRef;
       let outputImage = d.outputImage;
-      const inputImageRefs: string[] = [];
+      let inputImageRefs = d.inputImageRefs ? [...d.inputImageRefs] : [];
       const inputImages: string[] = [];
 
       // Handle output image - AI generated, save to generations
-      if (isBase64DataUrl(d.outputImage)) {
+      // Skip if already has ref (prevents duplicates on re-save after hydration)
+      if (d.outputImageRef && isBase64DataUrl(d.outputImage)) {
+        outputImage = null;
+      } else if (isBase64DataUrl(d.outputImage)) {
         outputImageRef = await saveImageAndGetId(d.outputImage, workflowPath, savedImageIds, "generations");
         outputImage = null;
       }
 
       // Handle input images array (these come from connected nodes, save to inputs if present)
-      for (const img of d.inputImages) {
-        if (isBase64DataUrl(img)) {
+      // Skip if corresponding inputImageRef already exists
+      for (let i = 0; i < d.inputImages.length; i++) {
+        const img = d.inputImages[i];
+        const existingRef = d.inputImageRefs?.[i];
+        if (existingRef && isBase64DataUrl(img)) {
+          inputImages.push(""); // Already has ref, just clear the base64
+        } else if (isBase64DataUrl(img)) {
           const ref = await saveImageAndGetId(img, workflowPath, savedImageIds, "inputs");
-          inputImageRefs.push(ref);
+          inputImageRefs[i] = ref;
           inputImages.push(""); // Empty placeholder
         } else {
           inputImages.push(img);
@@ -129,14 +150,19 @@ async function externalizeNodeImages(
 
     case "llmGenerate": {
       const d = data as import("@/types").LLMGenerateNodeData;
-      const inputImageRefs: string[] = [];
+      let inputImageRefs = d.inputImageRefs ? [...d.inputImageRefs] : [];
       const inputImages: string[] = [];
 
       // Handle input images array (save to inputs)
-      for (const img of d.inputImages) {
-        if (isBase64DataUrl(img)) {
+      // Skip if corresponding inputImageRef already exists
+      for (let i = 0; i < d.inputImages.length; i++) {
+        const img = d.inputImages[i];
+        const existingRef = d.inputImageRefs?.[i];
+        if (existingRef && isBase64DataUrl(img)) {
+          inputImages.push(""); // Already has ref, just clear the base64
+        } else if (isBase64DataUrl(img)) {
           const ref = await saveImageAndGetId(img, workflowPath, savedImageIds, "inputs");
-          inputImageRefs.push(ref);
+          inputImageRefs[i] = ref;
           inputImages.push(""); // Empty placeholder
         } else {
           inputImages.push(img);
@@ -151,16 +177,45 @@ async function externalizeNodeImages(
       break;
     }
 
+    case "generateVideo": {
+      const d = data as import("@/types").GenerateVideoNodeData;
+      let inputImageRefs = d.inputImageRefs ? [...d.inputImageRefs] : [];
+      const inputImages: string[] = [];
+
+      // Handle input images array (save to inputs)
+      // Skip if corresponding inputImageRef already exists
+      for (let i = 0; i < d.inputImages.length; i++) {
+        const img = d.inputImages[i];
+        const existingRef = d.inputImageRefs?.[i];
+        if (existingRef && isBase64DataUrl(img)) {
+          inputImages.push(""); // Already has ref, just clear the base64
+        } else if (isBase64DataUrl(img)) {
+          const ref = await saveImageAndGetId(img, workflowPath, savedImageIds, "inputs");
+          inputImageRefs[i] = ref;
+          inputImages.push(""); // Empty placeholder
+        } else {
+          inputImages.push(img);
+        }
+      }
+
+      // Note: outputVideo is a video URL, not saved as an image
+      newData = {
+        ...d,
+        inputImages: inputImages.length > 0 && inputImages.every(i => i === "") ? [] : inputImages,
+        inputImageRefs: inputImageRefs.length > 0 ? inputImageRefs : undefined,
+      };
+      break;
+    }
+
     case "output": {
       const d = data as import("@/types").OutputNodeData;
       // Output displays generated content, save to generations
-      if (isBase64DataUrl(d.image)) {
+      // Skip if already has ref (prevents duplicates on re-save after hydration)
+      if (d.imageRef && isBase64DataUrl(d.image)) {
+        newData = { ...d, image: null };
+      } else if (isBase64DataUrl(d.image)) {
         const imageId = await saveImageAndGetId(d.image, workflowPath, savedImageIds, "generations");
-        newData = {
-          ...d,
-          image: null,
-          imageRef: imageId,
-        };
+        newData = { ...d, image: null, imageRef: imageId };
       } else {
         newData = d;
       }
@@ -170,13 +225,12 @@ async function externalizeNodeImages(
     case "splitGrid": {
       const d = data as import("@/types").SplitGridNodeData;
       // SplitGrid source is input content, save to inputs
-      if (isBase64DataUrl(d.sourceImage)) {
+      // Skip if already has ref (prevents duplicates on re-save after hydration)
+      if (d.sourceImageRef && isBase64DataUrl(d.sourceImage)) {
+        newData = { ...d, sourceImage: null };
+      } else if (isBase64DataUrl(d.sourceImage)) {
         const imageId = await saveImageAndGetId(d.sourceImage, workflowPath, savedImageIds, "inputs");
-        newData = {
-          ...d,
-          sourceImage: null,
-          sourceImageRef: imageId,
-        };
+        newData = { ...d, sourceImage: null, sourceImageRef: imageId };
       } else {
         newData = d;
       }
@@ -203,12 +257,9 @@ async function saveImageAndGetId(
   savedImageIds: Map<string, string>,
   folder: "inputs" | "generations" = "inputs"
 ): Promise<string> {
-  // Create a hash using length + samples from different parts of the data
-  // This avoids issues where all images of the same format have identical headers
+  // Use MD5 hash for reliable deduplication (consistent with save-generation API, Phase 13 decision)
   // Include folder in hash so same image in different folders gets different IDs
-  const len = imageData.length;
-  const mid = Math.floor(len / 2);
-  const hash = `${folder}-${len}-${imageData.substring(50, 100)}-${imageData.substring(mid, mid + 50)}-${imageData.substring(Math.max(0, len - 50))}`;
+  const hash = `${folder}-${computeContentHash(imageData)}`;
 
   if (savedImageIds.has(hash)) {
     return savedImageIds.get(hash)!;
@@ -334,6 +385,27 @@ async function hydrateNodeImages(
 
     case "llmGenerate": {
       const d = data as import("@/types").LLMGenerateNodeData;
+      const inputImages = [...d.inputImages];
+
+      // Hydrate input images from refs
+      if (d.inputImageRefs && d.inputImageRefs.length > 0) {
+        for (let i = 0; i < d.inputImageRefs.length; i++) {
+          const ref = d.inputImageRefs[i];
+          if (ref) {
+            inputImages[i] = await loadImageById(ref, workflowPath, loadedImages, "inputs");
+          }
+        }
+      }
+
+      newData = {
+        ...d,
+        inputImages,
+      };
+      break;
+    }
+
+    case "generateVideo": {
+      const d = data as import("@/types").GenerateVideoNodeData;
       const inputImages = [...d.inputImages];
 
       // Hydrate input images from refs

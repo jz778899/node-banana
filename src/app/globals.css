@@ -7,6 +7,9 @@
 :root {
   --background: #0a0a0a;
   --foreground: #fafafa;
+  /* Handle colors (used by labels) */
+  --handle-color-image: #10b981;
+  --handle-color-text: #3b82f6;
 }
 
 html {
@@ -70,8 +73,8 @@ body {
   background: #10b981;
 }
 
-/* Prompt/text handles - soft blue */
-.react-flow__handle[data-handletype="prompt"] {
+/* Text handles - soft blue */
+.react-flow__handle[data-handletype="text"] {
   background: #3b82f6;
 }
 

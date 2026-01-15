@@ -1,14 +1,16 @@
 # Node Banana
 
-> **Important note:** This is in early development, it probably has some issues. Use Chrome. For support or raising any issues join the [discord](https://discord.com/invite/89Nr6EKkTf).
+> **Important note:** This is in early development, it probably has some issues. Use Chrome. For support or raising any issues join the [discord](https://discord.com/invite/89Nr6EKkTf). See the [docs](https://node-banana-docs.vercel.app/) for help, installation guides, and user guides.
 
-Node Banana is node-based workflow application for generating images with NBP. Build image generation pipelines by connecting nodes on a visual canvas. Built mainly with Opus 4.5.
+Node Banana is node-based workflow application for generating images with Nano Banana Pro. Build image generation pipelines by connecting nodes on a visual canvas. Recent Fal and Replicate integration allows for complex image and video pipelines from any provider, but be aware this is still in testing. 
+
+Built mainly with Opus 4.5.
 
 ![Node Banana Screenshot](public/node-banana.png)
 
 ## Features
 
-- **AI Quickstart** - Generate complete workflows from natural language descriptions or choose from preset templates
+- **Prompt to Workflow** - Generate complete workflows from natural language descriptions or choose from preset templates (Gemini only for now)
 - **Visual Node Editor** - Drag-and-drop nodes onto an infinite canvas with pan and zoom
 - **Image Annotation** - Full-screen editor with drawing tools (rectangles, circles, arrows, freehand, text)
 - **AI Image Generation** - Generate images using Google Gemini models
@@ -16,6 +18,14 @@ Node Banana is node-based workflow application for generating images with NBP. B
 - **Workflow Chaining** - Connect multiple nodes to create complex pipelines
 - **Save/Load Workflows** - Export and import workflows as JSON files
 - **Group Locking** - Lock node groups to skip them during execution
+
+## Multi-Provider Support (Beta)
+
+In addition to Google Gemini, Node Banana now supports:
+- **Replicate** - Access thousands of open-source models
+- **fal.ai** - Fast inference for image and video generation
+
+Configure API keys in Project Settings to enable these providers.
 
 ## Tech Stack
 
@@ -25,7 +35,7 @@ Node Banana is node-based workflow application for generating images with NBP. B
 - **Canvas**: Konva.js / react-konva
 - **State Management**: Zustand
 - **Styling**: Tailwind CSS
-- **AI**: Google Gemini API, OpenAI API
+- **AI**: Google Gemini API, OpenAI API, Replicate (Beta), fal.ai (Beta)
 
 ## Getting Started
 
@@ -40,7 +50,9 @@ Create a `.env.local` file in the root directory:
 
 ```env
 GEMINI_API_KEY=your_gemini_api_key
-OPENAI_API_KEY=your_openai_api_key  # Optional, for OpenAI LLM provider
+OPENAI_API_KEY=your_openai_api_key      # Optional, for OpenAI LLM provider
+REPLICATE_API_KEY=your_replicate_api_key  # Optional, beta
+FAL_API_KEY=your_fal_api_key              # Optional, beta
 ```
 
 ### Installation

@@ -254,9 +254,6 @@ function analyzeGridFromImageData(imageData: ImageData): GridDetectionResult {
     }
   }
 
-  console.log(`[GridSplitter] Best candidate: ${bestCandidate.rows}x${bestCandidate.cols}, ` +
-    `cell AR: ${bestCandidate.cellAspectRatio.toFixed(2)}, score: ${bestCandidate.score.toFixed(3)}`);
-
   // Build the grid cells
   const result = createGridForDimensions(width, height, bestCandidate.rows, bestCandidate.cols);
   result.confidence = bestCombinedScore;
