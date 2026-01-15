@@ -75,7 +75,7 @@ describe("QuickstartInitialView", () => {
       expect(screen.getByText("Start from scratch")).toBeInTheDocument();
       expect(screen.getByText("Open existing file")).toBeInTheDocument();
       expect(screen.getByText("Pre-built workflows")).toBeInTheDocument();
-      expect(screen.getByText("Describe what you want")).toBeInTheDocument();
+      expect(screen.getByText("Prompt a workflow")).toBeInTheDocument();
     });
   });
 
